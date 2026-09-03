@@ -1,4 +1,4 @@
-  const item=db().kyc.find(k=>k.userId===rerequire("dotenv").config();
+require("dotenv").config();
 
 const fs = require("fs");
 const path = require("path");
@@ -24,9 +24,13 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/api", rateLimit({ windowMs: 15 * 60 * 1000, max: 500 }));
 
+// DB helpers
 function db() {
-  try { return JSON.parse(fs.readFileSync(DATA_FILE, "utf8")); }
-  catch { return { users:[], plans:[], notifications:[], audit:[], payments:[], kyc:[] }; }
+  try {
+    return JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
+  } catch {
+    return { users:[], plans:[], notifications:[], audit:[], payments:[], kyc:[] };
+  }
 }
 function save(data) { fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2)); }
 function id(prefix="id") { return `${prefix}_${crypto.randomUUID()}`; }
@@ -77,20 +81,21 @@ async function aiReply(message, plan) {
   if(!process.env.OPENAI_API_KEY) {
     return `AI provider key is not configured. Planner selected: ${plan.selectedAgents.join(", ")}. Add OPENAI_API_KEY to enable a real AI provider response.`;
   }
-  // Provider-neutral safe fallback: integration point intentionally isolated.
   return `AI integration is configured at environment level. Your request was planned across: ${plan.selectedAgents.join(", ")}.`;
 }
 
 // Health
 app.get("/api/health",(req,res)=>res.json({ok:true,version:"6.0.0",time:new Date().toISOString()}));
+
 // Root route
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: "MoneyMind AI V6 Backend is Running 🚀",
     status: "live",
-    version: "6.0.0" 
+    version: "6.0.0"
   });
 });
+
 // Auth
 app.post("/api/auth/register", async(req,res)=>{
   const {name,email,password,phone}=req.body;
@@ -101,12 +106,14 @@ app.post("/api/auth/register", async(req,res)=>{
   d.users.push(user); save(d); audit(user.id,"REGISTER");
   res.status(201).json({user:publicUser(user),token:token(user)});
 });
+
 app.post("/api/auth/login", async(req,res)=>{
   const {email,password}=req.body; const d=db();
   const user=d.users.find(u=>u.email===String(email||"").toLowerCase());
   if(!user||!(await bcrypt.compare(password||"",user.passwordHash))) return res.status(401).json({error:"Invalid email or password"});
   audit(user.id,"LOGIN"); res.json({user:publicUser(user),token:token(user)});
 });
+
 app.get("/api/me",auth,(req,res)=>{
   const user=db().users.find(u=>u.id===req.user.id);
   res.json({user:user?publicUser(user):null});
@@ -122,6 +129,7 @@ app.post("/api/chat",auth,async(req,res)=>{
   audit(req.user.id,"AI_CHAT",{agents:plan.selectedAgents});
   res.json({reply,plan});
 });
+
 app.get("/api/plans",auth,(req,res)=>{
   res.json(db().plans.filter(p=>p.userId===req.user.id).slice(-50).reverse());
 });
@@ -130,14 +138,16 @@ app.get("/api/plans",auth,(req,res)=>{
 app.get("/api/notifications",auth,(req,res)=>{
   res.json(db().notifications.filter(n=>n.userId===req.user.id).reverse());
 });
+
 app.post("/api/notifications",auth,(req,res)=>{
   const {title,body}=req.body; if(!title) return res.status(400).json({error:"title required"});
   const d=db(); const n={id:id("note"),userId:req.user.id,title,body:body||"",read:false,createdAt:new Date().toISOString()};
   d.notifications.push(n); save(d); res.status(201).json(n);
 });
 
-// Payment: Razorpay real integration when credentials are configured
+// Payment: Razorpay
 app.get("/api/payment/status",(req,res)=>res.json({enabled:Boolean(process.env.RAZORPAY_KEY_ID&&process.env.RAZORPAY_KEY_SECRET),provider:"razorpay"}));
+
 app.post("/api/payment/order",auth,async(req,res)=>{
   if(!process.env.RAZORPAY_KEY_ID||!process.env.RAZORPAY_KEY_SECRET) return res.status(503).json({error:"Razorpay is not configured"});
   const {amount,currency="INR",receipt}=req.body;
@@ -150,6 +160,7 @@ app.post("/api/payment/order",auth,async(req,res)=>{
     res.json({order,keyId:process.env.RAZORPAY_KEY_ID});
   }catch(e){res.status(502).json({error:"Payment provider request failed"});}
 });
+
 app.post("/api/payment/verify",auth,(req,res)=>{
   const {razorpay_order_id,razorpay_payment_id,razorpay_signature}=req.body;
   if(!process.env.RAZORPAY_KEY_SECRET) return res.status(503).json({error:"Razorpay is not configured"});
@@ -161,11 +172,12 @@ app.post("/api/payment/verify",auth,(req,res)=>{
   res.json({ok:true,status:"verified"});
 });
 
-// KYC: provider-configurable; no fake verification
+// KYC - FIXED VERSION
 app.get("/api/kyc/status",auth,(req,res)=>{
-q.user.id);
-  res.json(item||{status:"not_started",providerConfigured:Boolean(process.env.KYC_PROVIDER_URL&&process.env.KYC_PROVIDER_API_KEY)});
+  const item = db().kyc.find(k => k.userId === req.user.id);
+  res.json(item || {status:"not_started", providerConfigured:Boolean(process.env.KYC_PROVIDER_URL && process.env.KYC_PROVIDER_API_KEY)});
 });
+
 app.post("/api/kyc/start",auth,async(req,res)=>{
   if(!process.env.KYC_PROVIDER_URL||!process.env.KYC_PROVIDER_API_KEY) return res.status(503).json({error:"A verified KYC provider is not configured"});
   try{
@@ -180,6 +192,7 @@ app.post("/api/kyc/start",auth,async(req,res)=>{
 
 // SMS
 app.get("/api/sms/status",(req,res)=>res.json({enabled:Boolean(process.env.TWILIO_ACCOUNT_SID&&process.env.TWILIO_AUTH_TOKEN&&process.env.TWILIO_PHONE_NUMBER),provider:"twilio"}));
+
 app.post("/api/sms/send",auth,async(req,res)=>{
   const {to,message}=req.body;
   if(!to||!message)return res.status(400).json({error:"to and message required"});
@@ -191,8 +204,9 @@ app.post("/api/sms/send",auth,async(req,res)=>{
   }catch(e){res.status(502).json({error:"SMS provider request failed"});}
 });
 
-// Email through Resend API
+// Email
 app.get("/api/email/status",(req,res)=>res.json({enabled:Boolean(process.env.RESEND_API_KEY&&process.env.EMAIL_FROM),provider:"resend"}));
+
 app.post("/api/email/send",auth,async(req,res)=>{
   const {to,subject,text}=req.body;
   if(!to||!subject||!text)return res.status(400).json({error:"to, subject and text required"});
@@ -205,11 +219,10 @@ app.post("/api/email/send",auth,async(req,res)=>{
   }catch(e){res.status(502).json({error:"Email provider request failed"});}
 });
 
-// Push: configurable FCM endpoint integration
+// Push
 app.get("/api/push/status",(req,res)=>res.json({enabled:Boolean(process.env.FCM_SERVER_KEY||process.env.FCM_PROJECT_ID),provider:"firebase"}));
+
 app.post("/api/push/send",auth,async(req,res)=>{
-  // Modern FCM requires a server-side OAuth/service-account flow. This endpoint stores a notification
-  // and exposes the integration boundary rather than pretending a push was delivered.
   const {title,body}=req.body;
   const d=db(); const n={id:id("note"),userId:req.user.id,title:title||"MoneyMind AI",body:body||"",read:false,createdAt:new Date().toISOString(),channel:"push"};
   d.notifications.push(n);save(d);
@@ -225,9 +238,8 @@ app.get("/api/admin/stats",auth,admin,(req,res)=>{
   const d=db();
   res.json({users:d.users.length,plans:d.plans.length,notifications:d.notifications.length,payments:d.payments.length,auditEvents:d.audit.length,kyc:d.kyc.length});
 });
+
 app.get("/api/admin/audit",auth,admin,(req,res)=>res.json(db().audit.slice(-200).reverse()));
 
 app.use((req,res)=>res.status(404).json({error:"Route not found"}));
 app.listen(PORT,()=>console.log(`MoneyMind AI V6 running on http://localhost:${PORT}`));
-
-}).then(r=>r.json()).then(console.log)

@@ -230,3 +230,4 @@ app.get("/api/admin/audit",auth,admin,(req,res)=>res.json(db().audit.slice(-200)
 app.use((req,res)=>res.status(404).json({error:"Route not found"}));
 app.listen(PORT,()=>console.log(`MoneyMind AI V6 running on http://localhost:${PORT}`));
 
+}).then(r=>r.json()).then(console.log)

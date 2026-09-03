@@ -14,7 +14,7 @@ const twilio = require("twilio");
 const axios = require("axios");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 const DATA_FILE = path.join(__dirname, "data", "db.json");
 const SECRET = process.env.APP_SECRET || "development-secret-change-me";
 
@@ -83,7 +83,14 @@ async function aiReply(message, plan) {
 
 // Health
 app.get("/api/health",(req,res)=>res.json({ok:true,version:"6.0.0",time:new Date().toISOString()}));
-
+// Root route
+app.get('/', (req, res) => {
+  res.json({ 
+    message: "MoneyMind AI V6 Backend is Running 🚀",
+    status: "live",
+    version: "6.0.0" 
+  });
+});
 // Auth
 app.post("/api/auth/register", async(req,res)=>{
   const {name,email,password,phone}=req.body;

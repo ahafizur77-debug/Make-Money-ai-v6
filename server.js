@@ -1,4 +1,4 @@
-require("dotenv").config();
+  const item=db().kyc.find(k=>k.userId===rerequire("dotenv").config();
 
 const fs = require("fs");
 const path = require("path");
@@ -163,7 +163,7 @@ app.post("/api/payment/verify",auth,(req,res)=>{
 
 // KYC: provider-configurable; no fake verification
 app.get("/api/kyc/status",auth,(req,res)=>{
-  const item=db().kyc.find(k=>k.userId===req.user.id);
+q.user.id);
   res.json(item||{status:"not_started",providerConfigured:Boolean(process.env.KYC_PROVIDER_URL&&process.env.KYC_PROVIDER_API_KEY)});
 });
 app.post("/api/kyc/start",auth,async(req,res)=>{
@@ -229,3 +229,4 @@ app.get("/api/admin/audit",auth,admin,(req,res)=>res.json(db().audit.slice(-200)
 
 app.use((req,res)=>res.status(404).json({error:"Route not found"}));
 app.listen(PORT,()=>console.log(`MoneyMind AI V6 running on http://localhost:${PORT}`));
+

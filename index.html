@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MoneyMind AI V6</title><link rel="stylesheet" href="/style.css"></head>
+<body><main>
+<header><h1>MoneyMind AI <span>V6</span></h1><p>Multi-Agent AI • Career • Opportunities • Planning</p></header>
+<section id="auth">
+<input id="name" placeholder="Name (for registration)">
+<input id="email" placeholder="Email" type="email">
+<input id="password" placeholder="Password" type="password">
+<div><button onclick="register()">Create account</button><button class="secondary" onclick="login()">Login</button></div>
+</section>
+<section id="app" hidden>
+<div class="bar"><strong id="who"></strong><button onclick="logout()">Logout</button></div>
+<textarea id="message" placeholder="Ask MoneyMind AI... Example: Make me a realistic income plan based on my skills."></textarea>
+<button onclick="chat()">Ask AI</button>
+<pre id="result"></pre>
+<h3>Service status</h3><div id="status"></div>
+</section>
+<p id="msg"></p>
+</main><script src="/app.js"></script></body></html>

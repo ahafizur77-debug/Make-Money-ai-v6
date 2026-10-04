@@ -1,10 +1,13 @@
-// MoneyMind AI Frontend - Vanilla JS
+// MoneyMind AI V6 - Frontend JavaScript
+// This file handles all frontend logic for authentication, chat, and service management
+
 const API_BASE = '/api';
 let token = localStorage.getItem('token') || null;
 let currentUser = null;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log('Initializing MoneyMind AI V6...');
   if (token) {
     await loadUserProfile();
     showApp();
@@ -14,7 +17,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadServiceStatus();
 });
 
-// Auth Functions
+// ============ AUTH FUNCTIONS ============
+
 async function register() {
   const name = document.getElementById('name').value.trim();
   const email = document.getElementById('email').value.trim();
@@ -23,6 +27,11 @@ async function register() {
 
   if (!name || !email || !password) {
     showMessage('Name, email, and password are required', 'error');
+    return;
+  }
+
+  if (password.length < 6) {
+    showMessage('Password must be at least 6 characters', 'error');
     return;
   }
 
@@ -44,10 +53,11 @@ async function register() {
     currentUser = data.user;
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(currentUser));
-    showMessage('Account created successfully!', 'success');
+    showMessage('✓ Account created successfully!', 'success');
     setTimeout(() => showApp(), 1000);
   } catch (err) {
-    showMessage('Error: ' + err.message, 'error');
+    console.error('Registration error:', err);
+    showMessage('✗ Error: ' + err.message, 'error');
   }
 }
 
@@ -78,10 +88,11 @@ async function login() {
     currentUser = data.user;
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(currentUser));
-    showMessage('Logged in successfully!', 'success');
+    showMessage('✓ Logged in successfully!', 'success');
     setTimeout(() => showApp(), 500);
   } catch (err) {
-    showMessage('Error: ' + err.message, 'error');
+    console.error('Login error:', err);
+    showMessage('✗ Error: ' + err.message, 'error');
   }
 }
 
@@ -90,7 +101,7 @@ async function logout() {
   currentUser = null;
   localStorage.removeItem('token');
   localStorage.removeItem('user');
-  showMessage('Logged out', 'success');
+  showMessage('✓ Logged out', 'success');
   setTimeout(() => showAuth(), 500);
 }
 
@@ -104,13 +115,20 @@ async function loadUserProfile() {
       const data = await res.json();
       currentUser = data.user;
       localStorage.setItem('user', JSON.stringify(currentUser));
+      console.log('User profile loaded:', currentUser.name);
+    } else {
+      // Token is invalid
+      token = null;
+      localStorage.removeItem('token');
+      showAuth();
     }
   } catch (err) {
     console.error('Failed to load profile:', err);
   }
 }
 
-// Chat and Plans
+// ============ CHAT & PLANS ============
+
 async function chat() {
   const message = document.getElementById('message').value.trim();
   if (!message) {
@@ -119,7 +137,7 @@ async function chat() {
   }
 
   const resultEl = document.getElementById('result');
-  resultEl.innerHTML = '<p class="loading">Processing your request...</p>';
+  resultEl.innerHTML = '<p class="loading">⏳ Processing your request...</p>';
 
   try {
     const res = await fetch(`${API_BASE}/chat`, {
@@ -133,34 +151,39 @@ async function chat() {
 
     if (!res.ok) {
       const error = await res.json();
-      throw new Error(error.error || 'Chat failed');
+      throw new Error(error.error || 'Chat request failed');
     }
 
     const data = await res.json();
     const plan = data.plan || {};
     const reply = data.reply || '';
 
-    let html = `<h4>AI Response:</h4><p>${escapeHtml(reply)}</p>`;
+    let html = `<h4>🤖 AI Response</h4><p>${escapeHtml(reply)}</p>`;
+    
     if (plan.selectedAgents && plan.selectedAgents.length > 0) {
-      html += `<h4>Agents Selected:</h4><ul>`;
+      html += `<h4>👥 Agents Selected</h4><ul>`;
       plan.selectedAgents.forEach(agent => {
         html += `<li>${escapeHtml(agent)}</li>`;
       });
       html += `</ul>`;
     }
+    
     if (plan.plan && plan.plan.length > 0) {
-      html += `<h4>Execution Plan:</h4><ol>`;
+      html += `<h4>📋 Execution Plan</h4><ol>`;
       plan.plan.forEach(step => {
         html += `<li><strong>${escapeHtml(step.agent)}</strong>: ${escapeHtml(step.task)}</li>`;
       });
       html += `</ol>`;
     }
+    
     resultEl.innerHTML = html;
     document.getElementById('message').value = '';
-    showMessage('Request processed', 'success');
+    showMessage('✓ Request processed', 'success');
+    loadPlans();
   } catch (err) {
-    resultEl.innerHTML = `<p class="error">Error: ${escapeHtml(err.message)}</p>`;
-    showMessage('Error: ' + err.message, 'error');
+    console.error('Chat error:', err);
+    resultEl.innerHTML = `<p class="error">✗ Error: ${escapeHtml(err.message)}</p>`;
+    showMessage('✗ Error: ' + err.message, 'error');
   }
 }
 
@@ -177,16 +200,17 @@ async function loadPlans() {
     if (!plansEl) return;
 
     if (plans.length === 0) {
-      plansEl.innerHTML = '<p class="empty">No plans yet. Ask MoneyMind AI a question to get started!</p>';
+      plansEl.innerHTML = '<p class="empty">💡 No plans yet. Ask MoneyMind AI a question to get started!</p>';
       return;
     }
 
-    let html = '<h4>Recent Plans</h4>';
+    let html = '<h4>📚 Recent Plans</h4>';
     plans.forEach(plan => {
       const date = new Date(plan.createdAt).toLocaleDateString();
+      const preview = plan.message.substring(0, 50) + (plan.message.length > 50 ? '...' : '');
       html += `
         <div class="plan-item">
-          <p><strong>${escapeHtml(plan.message)}</strong></p>
+          <p><strong>${escapeHtml(preview)}</strong></p>
           <small>${date}</small>
         </div>
       `;
@@ -197,7 +221,8 @@ async function loadPlans() {
   }
 }
 
-// Service Status
+// ============ SERVICE STATUS ============
+
 async function loadServiceStatus() {
   try {
     const statuses = {};
@@ -221,7 +246,7 @@ async function loadServiceStatus() {
     Object.entries(statuses).forEach(([service, data]) => {
       const enabled = data.enabled ? '✓' : '✗';
       const enabledClass = data.enabled ? 'enabled' : 'disabled';
-      html += `<div class="status-item ${enabledClass}"><strong>${service}</strong>: ${enabled}</div>`;
+      html += `<div class="status-item ${enabledClass}"><strong>${escapeHtml(service)}</strong>: ${enabled}</div>`;
     });
     html += '</div>';
     statusEl.innerHTML = html;
@@ -230,44 +255,61 @@ async function loadServiceStatus() {
   }
 }
 
-// UI Functions
+// ============ UI FUNCTIONS ============
+
 function showAuth() {
-  document.getElementById('auth').style.display = 'block';
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('name').value = '';
-  document.getElementById('email').value = '';
-  document.getElementById('password').value = '';
+  const authSection = document.getElementById('auth');
+  const appSection = document.getElementById('app');
+  if (authSection) authSection.style.display = 'block';
+  if (appSection) appSection.style.display = 'none';
+  
+  // Clear form
+  const inputs = ['name', 'email', 'password'];
+  inputs.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
 }
 
 function showApp() {
-  document.getElementById('auth').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
+  const authSection = document.getElementById('auth');
+  const appSection = document.getElementById('app');
+  if (authSection) authSection.style.display = 'none';
+  if (appSection) appSection.style.display = 'block';
+  
   if (currentUser) {
-    document.getElementById('who').textContent = `Welcome, ${currentUser.name}!`;
+    const whoEl = document.getElementById('who');
+    if (whoEl) whoEl.textContent = `👤 ${escapeHtml(currentUser.name)}`;
   }
+  
   loadPlans();
   loadServiceStatus();
 }
 
 function showMessage(text, type = 'info') {
   const msgEl = document.getElementById('msg');
+  if (!msgEl) return;
+  
   msgEl.textContent = text;
-  msgEl.className = `message message-${type}`;
+  msgEl.className = `message-${type}`;
+  
   if (type !== 'loading') {
     setTimeout(() => {
       msgEl.textContent = '';
       msgEl.className = '';
-    }, 3000);
+    }, 4000);
   }
 }
 
 function escapeHtml(text) {
+  if (typeof text !== 'string') return '';
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
 }
 
-// Handle Enter key in auth form
+// ============ KEYBOARD SHORTCUTS ============
+
 document.addEventListener('DOMContentLoaded', () => {
   const passwordInput = document.getElementById('password');
   if (passwordInput) {
@@ -276,6 +318,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const authSection = document.getElementById('auth');
         if (authSection && authSection.style.display !== 'none') {
           login();
+        }
+      }
+    });
+  }
+
+  const messageInput = document.getElementById('message');
+  if (messageInput) {
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && e.ctrlKey) {
+        const appSection = document.getElementById('app');
+        if (appSection && appSection.style.display !== 'none') {
+          chat();
         }
       }
     });
